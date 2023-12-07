@@ -7,25 +7,19 @@ let apiReceived = false;
 
 function App() {
   const initialFormData = {
-    id: "",
     title: "",
     content: "",
     image: "",
     category: "",
-    tags: "",
-    published: false,
+    tags: [],
+    published: true,
   };
-
-  const tags = [
-    "Travels and adventures",
-    "Health and wellness",
-    "Art and culture",
-    "Food and recipes",
-  ];
 
   const [postsList, setPostsList] = useState([]);
   const [post, setPost] = useState(initialFormData);
   const [editId, setIdPost] = useState("");
+  const [tags, setTags] = useState([]);
+  const [category, setCategory] = useState([]);
 
   async function getPosts() {
     try {
@@ -38,9 +32,31 @@ function App() {
     }
   }
 
+  async function getCategories() {
+    try {
+      const response = await fetch("http://localhost:3000/categories");
+      const category = await response.json();
+      setCategory(category);
+    } catch (error) {
+      console.error("Errore nella chiamata API:", error);
+    }
+  }
+
+  async function getTags() {
+    try {
+      const response = await fetch("http://localhost:3000/tags");
+      const tags = await response.json();
+      setTags(tags);
+    } catch (error) {
+      console.error("Errore nella chiamata API:", error);
+    }
+  }
+
   useEffect(() => {
     if (!apiReceived) {
       getPosts();
+      getCategories();
+      getTags();
       apiReceived = true;
     }
   }, []);
@@ -51,22 +67,22 @@ function App() {
     setPost(newPost);
   }
 
-  function handleFormSubmit(e) {
+  async function handleFormSubmit(e) {
     e.preventDefault();
 
+    console.log("Body of the request:", JSON.stringify(post));
     if (!editId) {
-      setPostsList([
-        ...postsList,
-        {
-          ...post,
-          id: crypto.randomUUID(),
-          image:
-            post.image ||
-            "https://avante.biz/wp-content/uploads/Desktop-Wallpapers-HD-Widescreen/Desktop-Wallpapers-HD-Widescreen-002.jpg",
-          createdAt: new Date(),
-          published: true,
+      const response = await fetch("http://localhost:3000/posts/", {
+        method: "post",
+        headers: {
+          "Content-Type": "application/json",
         },
-      ]);
+        body: JSON.stringify({
+          ...post,
+          image: post.image,
+        }),
+      });
+
       setPost(initialFormData);
     } else {
       setPostsList(
@@ -104,7 +120,14 @@ function App() {
     setIdPost(postId);
   }
 
-  function handleTags(value) {
+  function handleCategory(id) {
+    setPost((currentPost) => ({
+      ...currentPost,
+      category: parseInt(id, 10),
+    }));
+  }
+
+  function handleTags(id) {
     /*     let tags = [...post.tags];
 
     if (tags.includes(value)) {
@@ -117,9 +140,7 @@ function App() {
 
     setPost(({ tags, ...post }) => ({
       ...post,
-      tags: tags.includes(value)
-        ? tags.filter((el) => el !== value)
-        : [...tags, value],
+      tags: tags.includes(id) ? tags.filter((el) => el !== id) : [...tags, id],
     }));
   }
 
@@ -152,34 +173,29 @@ function App() {
           className="border p-3 select-transparent"
           value={post.category}
           type="select"
-          onChange={(e) => updatePostsList(e.target.value, "category")}
+          onChange={(e) => handleCategory(e.target.value, "category")}
         >
           <option value="" disabled>
             Choose a category
           </option>
-          <option value="Technology and innovations">
-            Technology and innovations
-          </option>
-          <option value="Travels and adventures">Travels and adventures</option>
-          <option value="Health and wellness">Health and wellness</option>
-          <option value="Art and culture">Art and culture</option>
-          <option value="Food and recipes">Food and recipes</option>
-          <option value="Finance and investments">
-            Finance and investments
-          </option>
+          {category.map((el, index) => (
+            <option key={el.id} value={el.id}>
+              {el.name}
+            </option>
+          ))}
         </select>
         {tags.map((el) => (
           <label
             className="flex justify-center gap-2"
             key={self.crypto.randomUUID()}
           >
-            {el}
+            {el.name}
             <input
               className="border p-3"
-              value={el}
+              value={el.name}
               type="checkbox"
-              checked={post.tags.includes(el)}
-              onChange={(e) => handleTags(e.target.value)}
+              checked={post.tags.includes(el.id)}
+              onChange={() => handleTags(el.id)}
             />
           </label>
         ))}
